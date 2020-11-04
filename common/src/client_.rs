@@ -33,6 +33,7 @@ use std::{
 
 static CONTENT_DISPOSITION: HeaderName = header::CONTENT_DISPOSITION;
 static CONTENT_TYPE: HeaderName = header::CONTENT_TYPE;
+static CONTENT_LENGTH: HeaderName = header::CONTENT_LENGTH;
 
 /// Writes a CLRF.
 ///
@@ -104,6 +105,12 @@ impl<'a> Body<'a> {
         write.write_all(CONTENT_DISPOSITION.as_ref())?;
         write.write_all(b": ")?;
         write.write_all(part.content_disposition.as_bytes())?;
+        write_crlf(write)?;
+        if let Some(content_length) = part.content_length() {
+            write.write_all(CONTENT_LENGTH.as_ref())?;
+            write.write_all(b": ")?;
+            write!(write, "{}", content_length)?;
+        }
         write_crlf(write)?;
         write_crlf(write)
     }
@@ -563,6 +570,13 @@ impl<'a> Part<'a> {
             inner,
             content_type,
             content_disposition: format!("form-data; {}", disposition_params.join("; ")),
+        }
+    }
+
+    fn content_length(&self) -> Option<u64> {
+        match &self.inner {
+            Inner::Read(_, s) => s.clone(),
+            Inner::Text(t) => Some(t.len() as u64),
         }
     }
 }
